@@ -102,11 +102,20 @@ add_library(celestia SHARED ${CELESTIA_SOURCES}
                             ${CELESTIA_CORE_LIBS}
 )
 
-set_target_properties(celestia PROPERTIES
-  VERSION ${PROJECT_VERSION}
-  SOVERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-  WINDOWS_EXPORT_ALL_SYMBOLS TRUE
-)
+if(NOT CELESTIA_OHOS)
+  set_target_properties(celestia PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+    WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+  )
+else()
+  # HarmonyOS: unversioned shared library name (libcelestia.so)
+  set_target_properties(celestia PROPERTIES
+    VERSION ""
+    SOVERSION ""
+    WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+  )
+endif()
 
 if(ENABLE_SPICE)
   target_link_libraries(celestia CSPICE::CSPICE)

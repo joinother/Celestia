@@ -57,7 +57,7 @@ constexpr float DEFAULT_TINT_SATURATION = 0.5f;
 constexpr int DEFAULT_STARS_COLOR = static_cast<int>(ColorTableType::SunWhite);
 constexpr float DEFAULT_VISUAL_MAGNITUDE = 8.0f;
 constexpr auto DEFAULT_STAR_STYLE = static_cast<int>(StarStyle::FuzzyPointStars);
-constexpr auto DEFAULT_TEXTURE_RESOLUTION = static_cast<int>(engine::TextureResolution::medres);
+constexpr auto DEFAULT_TEXTURE_RESOLUTION = static_cast<int>(engine::TextureResolution::hires);
 
 std::pair<float, float>
 mousePosition(const QMouseEvent& m, qreal scale)
@@ -85,6 +85,12 @@ CelestiaGlWidget::CelestiaGlWidget(QWidget* parent, const char* /* name */, Cele
 
     // We use glClear directly, so we don't need it called by Qt.
     setUpdateBehavior(QOpenGLWidget::PartialUpdate);
+
+#ifdef CELESTIA_OHOS
+    // HarmonyOS 模拟器: 让 GL 子窗口作为原生窗口渲染，避免父窗口走 RHI 合成器
+    // （合成器 GLES2 swapchain 在该模拟器上会崩溃）。
+    setAttribute(Qt::WA_NativeWindow);
+#endif
 }
 
 CelestiaGlWidget::~CelestiaGlWidget() = default;

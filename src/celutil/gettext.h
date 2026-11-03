@@ -20,6 +20,21 @@
 #include <libintl.h>
 #include <fmt/format.h>
 
+// HarmonyOS/musl workaround: the musl dynamic linker (ld-musl-*.so.1)
+// exports a gettext() stub that simply returns msgid unchanged, and it wins
+// symbol resolution over our bundled libintl implementation (musl is always
+// loaded first). Rename the entire gettext API to cel_* so every Celestia
+// translation call binds to our own implementation in libintl.
+#define gettext cel_gettext
+#define dgettext cel_dgettext
+#define dcgettext cel_dcgettext
+#define ngettext cel_ngettext
+#define dngettext cel_dngettext
+#define dcngettext cel_dcngettext
+#define bindtextdomain cel_bindtextdomain
+#define bind_textdomain_codeset cel_bind_textdomain_codeset
+#define textdomain cel_textdomain
+
 namespace celestia::util::detail
 {
 

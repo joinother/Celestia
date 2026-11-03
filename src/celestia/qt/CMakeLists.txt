@@ -15,6 +15,8 @@ set(CELQT6_SOURCES
   qtcelestiaactions.h
   qtcelestialbrowser.cpp
   qtcelestialbrowser.h
+  qtcli.cpp
+  qtcli.h
   qtcolorswatchwidget.cpp
   qtcolorswatchwidget.h
   qtcommandline.cpp
@@ -40,6 +42,8 @@ set(CELQT6_SOURCES
   qtpathutil.h
   qtpreferencesdialog.cpp
   qtpreferencesdialog.h
+  qtprecheck.cpp
+  qtprecheck.h
   qtselectionpopup.cpp
   qtselectionpopup.h
   qtsettimedialog.cpp
@@ -66,11 +70,24 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt6 COMPONENTS Core Widgets OpenGLWidgets CONFIG REQUIRED)
 qt6_add_resources(CELQT6_RC_SRC "../qt/icons.qrc")
 
-add_executable(celestia-qt6 WIN32 ${CELQT6_SOURCES} ${CELQT6_RC_SRC})
-add_dependencies(celestia-qt6 celestia)
-target_link_libraries(celestia-qt6 PUBLIC Qt6::Widgets Qt6::OpenGLWidgets celestia)
+if(CELESTIA_OHOS)
+  # HarmonyOS: build the Qt frontend as a shared library (libcelestiaqt.so)
+  # so the qohos platform plugin can dlopen it and call main().
+  add_library(celestia-qt6 SHARED ${CELQT6_SOURCES} ${CELQT6_RC_SRC})
+  set_target_properties(celestia-qt6 PROPERTIES OUTPUT_NAME celestiaqt)
+  add_dependencies(celestia-qt6 celestia)
+  target_link_libraries(celestia-qt6 PUBLIC Qt6::Widgets Qt6::OpenGLWidgets celestia)
+  target_link_options(celestia-qt6 PRIVATE "-l:libhilog_ndk.z.so")
+  target_compile_definitions(celestia-qt6 PRIVATE CELESTIA_OHOS)
+else()
+  add_executable(celestia-qt6 WIN32 ${CELQT6_SOURCES} ${CELQT6_RC_SRC})
+  add_dependencies(celestia-qt6 celestia)
+  target_link_libraries(celestia-qt6 PUBLIC Qt6::Widgets Qt6::OpenGLWidgets celestia)
+endif()
 
-set_target_properties(celestia-qt6 PROPERTIES CXX_VISIBILITY_PRESET hidden)
+if(NOT CELESTIA_OHOS)
+  set_target_properties(celestia-qt6 PROPERTIES CXX_VISIBILITY_PRESET hidden)
+endif()
 
 if(APPLE)
   set_property(TARGET celestia-qt6 APPEND_STRING PROPERTY LINK_FLAGS " -framework CoreFoundation")

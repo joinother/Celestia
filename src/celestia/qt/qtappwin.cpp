@@ -73,6 +73,13 @@
 #include <celestia/celestiastate.h>
 #include <celestia/configfile.h>
 #include <celestia/progressnotifier.h>
+
+#ifdef CELESTIA_OHOS
+#include <hilog/log.h>
+#define CEL_LOG(fmt, ...) OH_LOG_Print(LOG_APP, LOG_INFO, 0xCE11, "Celestia", "[qtappwin] " fmt, ##__VA_ARGS__)
+#else
+#define CEL_LOG(fmt, ...) qDebug(fmt, ##__VA_ARGS__)
+#endif
 #ifdef USE_FFMPEG
 #include <celestia/ffmpegcapture.h>
 #endif
@@ -85,6 +92,7 @@
 #include "qtcelestiaactions.h"
 #include "qtcelestialbrowser.h"
 #include "qtcommandline.h"
+#include "qtcli.h"
 #include "qtdeepskybrowser.h"
 #include "qteventfinder.h"
 #include "qtglwidget.h"
@@ -240,6 +248,7 @@ CelestiaAppWindow::CelestiaAppWindow(QWidget* parent) :
 {
     setObjectName("celestia-mainwin");
     timer = new QTimer(this);
+    cliTimer = new QTimer(this);
 }
 
 CelestiaAppWindow::~CelestiaAppWindow()
@@ -250,6 +259,7 @@ CelestiaAppWindow::~CelestiaAppWindow()
 void
 CelestiaAppWindow::init(const CelestiaCommandLineOptions& options)
 {
+    CEL_LOG("init: begin, startDirectory='%s'", qPrintable(options.startDirectory));
     auto logPath = QDir(options.logFilename);
     if (!logPath.makeAbsolute())
         QMessageBox::warning(0, "Celestia", _("Error getting path for log filename!"));
@@ -266,11 +276,13 @@ CelestiaAppWindow::init(const CelestiaCommandLineOptions& options)
         QDir::setCurrent(celestiaDataDir);
         m_dataHome = QDir::currentPath();
     } else {
+        CEL_LOG("init: FATAL data directory not readable: '%s'", qPrintable(celestiaDataDir));
         QMessageBox::critical(0, "Celestia",
             _("Celestia is unable to run because the data directory was not "
               "found, probably due to improper installation."));
             exit(1);
     }
+    CEL_LOG("init: data dir ok, m_dataHome='%s'", qPrintable(m_dataHome));
 
     // Get the config file name
     std::filesystem::path configFileName;
@@ -283,8 +295,10 @@ CelestiaAppWindow::init(const CelestiaCommandLineOptions& options)
         extrasDirectories.push_back(QStringToPath(dir));
 
     initAppDataDirectory();
+    CEL_LOG("init: initAppDataDirectory done");
 
     m_appCore = new CelestiaCore();
+    CEL_LOG("init: CelestiaCore created");
 
     auto* progress = new AppProgressNotifier(this);
     alerter = new AppAlerter(this);
@@ -313,13 +327,16 @@ CelestiaAppWindow::init(const CelestiaCommandLineOptions& options)
     if (!options.logFilename.isEmpty())
         m_appCore->setLogFile(QStringToPath(logPath.absolutePath()));
 
+    CEL_LOG("init: calling initSimulation, config='%s'", configFileName.empty() ? "(default)" : configFileName.c_str());
     if (!m_appCore->initSimulation(configFileName,
                                    extrasDirectories,
                                    progress))
     {
          // Error message is shown by celestiacore so we silently exit here.
+         CEL_LOG("init: initSimulation FAILED");
          exit(1);
     }
+    CEL_LOG("init: initSimulation OK");
     delete progress;
 
     if (!options.startURL.isEmpty())
@@ -347,6 +364,7 @@ CelestiaAppWindow::init(const CelestiaCommandLineOptions& options)
     QSurfaceFormat::setDefaultFormat(glformat);
 
     glWidget = new CelestiaGlWidget(nullptr, "Celestia", m_appCore);
+    CEL_LOG("init: glWidget created");
 
     m_appCore->setCursorHandler(glWidget);
     m_appCore->setContextMenuHandler(this);
@@ -488,6 +506,39 @@ CelestiaAppWindow::init(const CelestiaCommandLineOptions& options)
     // We use a timer to add m_appCore->tick to Qt's event loop
     QObject::connect(timer, SIGNAL(timeout()), SLOT(celestia_tick()));
     timer->start();
+
+    // Poll the CLI command file written by the ArkTS UI (HarmonyOS port).
+    QObject::connect(cliTimer, &QTimer::timeout, this, &CelestiaAppWindow::processCliCommands);
+    cliTimer->start(150);
+
+    // CLI console dock (HarmonyOS port): an in-app command line executed
+    // directly against the Celestia core.
+    {
+        auto* cliHost = new QWidget(this);
+        auto* cliLayout = new QVBoxLayout(cliHost);
+        cliLayout->setContentsMargins(4, 2, 4, 2);
+        cliLayout->setSpacing(0);
+        auto* cliEdit = new QLineEdit(cliHost);
+        cliEdit->setPlaceholderText(tr("CLI: goto <天体> | time scale <倍率> | render <标记> | label <标记> | setsurface | location | script | help"));
+        cliEdit->setClearButtonEnabled(true);
+        cliLayout->addWidget(cliEdit);
+        auto* cliDock = new QDockWidget(tr("CLI 控制台"), this);
+        cliDock->setObjectName("cli-console-dock");
+        cliDock->setWidget(cliHost);
+        cliDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetFloatable | QDockWidget::DockWidgetClosable);
+        addDockWidget(Qt::BottomDockWidgetArea, cliDock);
+        m_cliDock = cliDock;
+        QObject::connect(cliEdit, &QLineEdit::returnPressed, this, [this, cliEdit]() {
+            const QString cmd = cliEdit->text().trimmed();
+            if (cmd.isEmpty())
+                return;
+            CelestiaCli::execute(m_appCore, cmd);
+            cliEdit->clear();
+        });
+        // Add a toggle action to the View menu.
+        if (viewMenu != nullptr)
+            viewMenu->addAction(cliDock->toggleViewAction());
+    }
 }
 
 void
@@ -683,6 +734,48 @@ CelestiaAppWindow::celestia_tick()
 {
     m_appCore->tick();
     glWidget->update();
+}
+
+void
+CelestiaAppWindow::processCliCommands()
+{
+    if (m_appCore == nullptr || m_dataHome.isEmpty())
+        return;
+
+    const QString cmdFile = m_dataHome + QStringLiteral("/cli_commands.txt");
+    QFile f(cmdFile);
+    if (!f.exists())
+        return;
+
+    // Read queued commands (one per line), execute them, then truncate the file.
+    QStringList commands;
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        QTextStream in(&f);
+        const QString content = in.readAll();
+        f.close();
+        for (const QString& line : content.split(QStringLiteral("\n")))
+        {
+            const QString trimmed = line.trimmed();
+            if (!trimmed.isEmpty())
+                commands << trimmed;
+        }
+    }
+
+    if (!commands.isEmpty())
+    {
+        for (const QString& cmd : commands)
+        {
+            CEL_LOG("cli: executing '%s'", qPrintable(cmd));
+            CelestiaCli::execute(m_appCore, cmd);
+        }
+    }
+
+    // Clear the queue after processing.
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+    {
+        f.close();
+    }
 }
 
 void
