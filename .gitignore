@@ -25,3 +25,28 @@ Release/
 /content
 CMakeSettings.json
 __pycache__
+
+# ---- HarmonyOS (OpenHarmony) port ----
+/harmonyos/build/
+/harmonyos/install/
+/harmonyos/libs-backup/
+/harmonyos/deps/prefix/
+/harmonyos/deps/fmt-build/
+/harmonyos/deps/libepoxy-build/
+/harmonyos/app/entry/build/
+/harmonyos/app/build/
+/harmonyos/app/.hvigor/
+**/oh_modules/
+**/node_modules/
+**/.cxx/
+*.har
+*.hsp
+*.hap
+/harmonyos/sign/
+/harmonyos/app/local.properties
+*.log
+/harmonyos/hilog*.txt
+
+# ---- IDE ----
+.idea/
+*.iml
