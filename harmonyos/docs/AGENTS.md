@@ -1,14 +1,15 @@
-# Celestia HarmonyOS 移植 — Agent 协作文档
+# 星海巡天（Starsea）— Agent 协作文档
 
-> **最后更新：2026-08-27**
-> **仓库：** https://github.com/joinother/celestia-ohos （fork of CelestiaProject/Celestia，GPL-2.0）
+> **最后更新：2026-11-03**
+> **产品名：** 星海巡天（Starsea），底座为 Celestia，功能方向对标 SpaceEngine
+> **仓库：** https://github.com/joinother/Celestia ，分支 `ohos-port`（fork of CelestiaProject/Celestia，GPL-2.0）
 > **当前状态：** ArkTS 壳 + Qt-for-OHOS 渲染可运行；CLI 命令总线（方向 A/B/C）已完成；无头渲染验证通过
 
 ---
 
 ## 1. 项目概述
 
-将 [Celestia](https://github.com/CelestiaProject/Celestia) 开源 3D 天文模拟软件移植到 HarmonyOS 电脑版，单 HAP 应用运行在 DevEco 模拟器 / 鸿蒙电脑上。
+星海巡天（Starsea）以 [Celestia](https://github.com/CelestiaProject/Celestia) 开源 3D 天文模拟软件为技术底座，移植到 HarmonyOS 电脑版；功能方向对标 [SpaceEngine](https://spaceengine.org/)，单 HAP 应用运行在 DevEco 模拟器 / 鸿蒙电脑上。
 
 ### 架构
 
@@ -58,14 +59,14 @@ OpenGL ES → XComponent → Framebuffer
 
 | 路径 | 用途 |
 |------|------|
-| `celestia-src/` | Celestia 源码（git 副本，来自上游 + 鸿蒙改动） |
-| `celestia-src/src/celestia/qt/qtcli.cpp/.h` | **命令分发器**（鸿蒙 CLI 命令语言） |
-| `celestia-src/src/celestia/cli/celestia-cli.cpp` | **Mac 无头 CLI**（离屏渲染 + 命令目录 + batch） |
-| `app/entry/src/main/ets/` | ArkTS 壳（UI / 命令文件轮询） |
-| `app/entry/src/main/resources/rawfile/celestia/` | Celestia 数据（celestia.cfg、star catalogs、textures） |
-| `app/entry/src/main/cpp/` | N-API 原生桥（如有） |
-| `build-mac/` | Mac CLI 构建目录（gitignore） |
-| `build/` | 鸿蒙交叉编译目录（gitignore） |
+| `src/`（仓库根） | Celestia 源码（上游 + 鸿蒙改动，直接位于仓库根） |
+| `src/celestia/qt/qtcli.cpp/.h` | **命令分发器**（鸿蒙 CLI 命令语言） |
+| `src/celestia/cli/celestia-cli.cpp` | **Mac 无头 CLI**（离屏渲染 + 命令目录 + batch） |
+| `harmonyos/app/entry/src/main/ets/` | ArkTS 壳（UI / 命令文件轮询） |
+| `harmonyos/app/entry/src/main/resources/rawfile/celestia/` | Celestia 数据（celestia.cfg、star catalogs、textures） |
+| `harmonyos/app/entry/libs/arm64-v8a/` | 预编译 `.so`（libcelestia / libcelestiaqt / Qt） |
+| `harmonyos/configure.sh` | Qt-for-OHOS 交叉编译脚本 |
+| `harmonyos/deps/` | 自研 libintl + vendored fast_float/fmt/libepoxy |
 
 ---
 
@@ -74,18 +75,18 @@ OpenGL ES → XComponent → Framebuffer
 ### 4.1 鸿蒙 HAP（DevEco + hvigor）
 
 ```bash
-cd /Users/jiexuanyang/celestia-ohos
-# 交叉编译 celestia-src → libcelestiaqt.so（Qt-for-OHOS），同步到 entry/libs/arm64-v8a/
+cd <repo>/harmonyos
+# 交叉编译仓库根源码 → libcelestiaqt.so（Qt-for-OHOS），同步到 app/entry/libs/arm64-v8a/
 # 再用 DevEco Studio / hvigorw 打包签名
 /Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw assembleHap --no-daemon
 ```
 
-> 说明：`configure.sh` 含本机绝对路径，clone 后需修改。签名证书不入库（已在 git 中清除）。
+> 说明：`configure.sh` 已改为从脚本位置推导 `SRC`（仓库根）与 `CEL`（harmonyos/），工具链路径可用 `QTDIR` / `OHOS_SDK` / `OHOS_ADDITIONAL_PACKAGES` / `NINJA` 环境变量覆盖。签名证书不入库（已在 git 中清除）。
 
 ### 4.2 Mac 开发机 CLI（无头渲染，无需鸿蒙设备）
 
 ```bash
-cmake -S celestia-src -B build-mac \
+cmake -S . -B build-mac \
   -DCMAKE_BUILD_TYPE=Release -DENABLE_NLS=OFF -DENABLE_QT6=OFF \
   -DENABLE_FFMPEG=OFF -DENABLE_LIBAVIF=OFF -DCMAKE_CXX_FLAGS="-Wno-register" \
   -DCMAKE_PREFIX_PATH="/opt/homebrew/opt/eigen;/opt/homebrew/opt/fmt;/opt/homebrew/opt/lua;/opt/homebrew/opt/libpng;/opt/homebrew/opt/jpeg;/opt/homebrew/opt/libepoxy;/opt/homebrew/opt/freetype;/Users/jiexuanyang/Qt/6.12.0/macos"
@@ -120,7 +121,7 @@ CLI 机器可读目录：`celestia-cli --list --json`。
 
 > 当前个人开发者未备案，上架版必须是**单机版**（无联网功能），与 Stellarium 鸿蒙版策略一致。
 
-- [ ] 包名规范化
+- [ ] **包名决策**：当前沿用 `com.joinother.celestia`（与已装机版本一致）。若改为 `com.joinother.starsea`，需在 AGC 新建应用记录 + 新 Profile，且设备上要卸载重装——**尚未决定**
 - [ ] 隐私政策页面
 - [ ] 华为发布证书 + Release 签名
 - [ ] 截图（横屏）与应用描述（中英文）
@@ -142,7 +143,7 @@ CLI 机器可读目录：`celestia-cli --list --json`。
 
 ## 8. 注意事项
 
-1. **不要推送到上游 `CelestiaProject/Celestia`**，推送到 `joinother/celestia-ohos`
+1. **不要推送到上游 `CelestiaProject/Celestia`**，推送到 `joinother/Celestia` 的 `ohos-port` 分支
 2. `entry/libs/` 下 `.so` 不入库，丢失后需用 Qt-for-OHOS 重新生成
 3. hvigor 只构建 ArkTS + 打包，C++ 改动需 Qt 交叉编译
 4. ArkTS 限制（继承 Stellarium 经验）：`@Builder` 参数不是响应式的；`@Builder` 内不能写 `let`；`Blank()` 只能放 `Row/Column/Flex`；`HitTestMode.None` 会让子树按钮全部失效

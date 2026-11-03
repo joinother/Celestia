@@ -1,4 +1,10 @@
-# Celestia for HarmonyOS（鸿蒙电脑版）
+# 星海巡天（Starsea）for HarmonyOS
+
+> 产品名：**星海巡天**　英文名：Starsea　图标短名：星海
+>
+> 星海巡天是面向鸿蒙电脑的宇宙探索应用，以 [Celestia](https://github.com/CelestiaProject/Celestia) 为技术底座，功能方向对标 [SpaceEngine](https://spaceengine.org/)。
+>
+> Celestia 是上游开源项目，也是本项目的代码血缘与 GPL-2.0 许可来源；**星海巡天是独立品牌**，不是 Celestia 的汉化版。
 
 将开源天文模拟软件 [Celestia](https://github.com/CelestiaProject/Celestia)（Qt 版）移植到鸿蒙 HarmonyOS（OpenHarmony）PC 端。核心渲染/天体引擎基于 C++/Qt 编译为 `libcelestia.so`，应用壳为 ArkTS（`app/entry`），通过 ArkUI 承载 Qt 原生窗口。
 

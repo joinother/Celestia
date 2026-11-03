@@ -1,6 +1,14 @@
-# Celestia 鸿蒙移植 — 修改日志（CHANGELOG）
+# 星海巡天（Starsea）— 修改日志（CHANGELOG）
 
 > 每次变更在此追加，格式见 `AGENTS.md` 第 2 节。
+
+## 2026-11-03 - 品牌更名：Celestia 鸿蒙版 → 星海巡天（Starsea）
+- **修改文件：** `harmonyos/app/AppScope/resources/{base,zh_CN,en_US}/element/string.json`、`harmonyos/app/entry/src/main/resources/{base,zh_CN,en_US,zh_TW,ja,ko}/element/string.json`、`harmonyos/README.md`、`harmonyos/docs/AGENTS.md`
+- **修改内容：** ① 应用名 `Celestia` / `天际遨游` → `星海巡天`（英文 `Starsea`）；② 新增 `AppScope/resources/en_US` 与 `app_name` 英文值；③ 修正 ja / ko / zh_TW 三个语言包里残留的 `星象仪`（旧项目复制粘贴遗留）；④ README 增加品牌说明（星海巡天为独立品牌，Celestia 为技术底座与 GPL-2.0 来源）；⑤ AGENTS.md 更新仓库地址、源码路径（`src/` 在仓库根、壳在 `harmonyos/`）、构建命令、推送目标
+- **修改原因：** 产品定名。Celestia 是上游开源项目名，需与自有品牌区隔，避免被当成汉化版
+- **构建结果：** 未重编（仅资源与文档改动）
+- **验证结果：** 未验证（下次 `assembleHap` 后设备上应用名生效）
+- **备注：** 包名仍为 `com.joinother.celestia`；改为 `com.joinother.starsea` 需新建 AGC 应用 + 新 Profile + 卸载重装，见 AGENTS.md 第 6 节
 
 ## 2026-08-30 - 渲染清晰度修复：4K hires 纹理 + 默认 hires（对比 Mobile 版）
 - **修改文件：** `celestia-src/src/celestia/qt/qtglwidget.cpp`、`celestia-src/src/celestia/celestiacore.{h,cpp}`、`celestia-src/src/celestia/cli/celestia-cli.cpp`、`textures/hires/*`（12 张 4K）、`textures/medres/earth.jpg`、`docs/RESOLUTION.md`
